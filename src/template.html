@@ -1,0 +1,227 @@
+<title>NovaDrive Supplier Risk Console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: a working console. Sticky header with tabs; each tab is one job. Summary first, evidence one click away. */
+:root{
+  --bg:#f2f5f4; --surface:#ffffff; --surface-2:#e9eeec; --ink:#14201e; --muted:#566562; --line:#d3dbd8;
+  --accent:#0d5f66; --accent-soft:#d9eaeb; --accent-ink:#ffffff;
+  --good:#256f45; --good-soft:#dcefe3; --warn:#9a5b00; --warn-soft:#f8e9cc; --crit:#b3261e; --crit-soft:#f9dedb;
+  --font-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-head:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1514; --surface:#171f1e; --surface-2:#1f2928; --ink:#e4ebe9; --muted:#9aaaa6; --line:#2c3937;
+  --accent:#74c6cc; --accent-soft:#16383b; --accent-ink:#0c1a1b;
+  --good:#74cf9a; --good-soft:#173524; --warn:#efb559; --warn-soft:#3b2c10; --crit:#f28b83; --crit-soft:#43201d; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f1514; --surface:#171f1e; --surface-2:#1f2928; --ink:#e4ebe9; --muted:#9aaaa6; --line:#2c3937;
+  --accent:#74c6cc; --accent-soft:#16383b; --accent-ink:#0c1a1b;
+  --good:#74cf9a; --good-soft:#173524; --warn:#efb559; --warn-soft:#3b2c10; --crit:#f28b83; --crit-soft:#43201d; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:14px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 28px;padding-block:12px 0}
+.brand{display:flex;flex-direction:column;gap:2px;padding-bottom:10px;min-width:0}
+.brand h1{font-family:var(--font-head);font-size:20px;font-weight:600;margin:0;letter-spacing:.01em}
+.brand span{color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:2px;overflow-x:auto;min-width:0;max-width:100%}
+.tabs button{font:500 14px var(--font-ui);color:var(--muted);background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px 9px;cursor:pointer;white-space:nowrap}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding-block:20px 56px;display:flex;flex-direction:column;gap:20px}
+.tab{display:flex;flex-direction:column;gap:20px}
+h2{font-family:var(--font-head);font-size:18px;font-weight:600;margin:0;text-wrap:balance}
+h3{font-size:14px;font-weight:600;margin:0}
+p{margin:0;max-width:75ch}
+.lede{color:var(--muted);max-width:80ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.lab{font-size:12px;color:var(--muted);font-weight:500}
+select,input[type=text],input[type=date],textarea{font:400 14px var(--font-ui);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 9px;max-width:100%}
+textarea{min-height:64px;width:100%;resize:vertical}
+input[type=range]{accent-color:var(--accent);width:180px;max-width:100%}
+.btn{font:500 13px var(--font-ui);border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 12px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 8px;font-size:12px}
+.btn:hover{filter:brightness(1.08)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 6px 3px 10px;font-size:13px;font-weight:500;background:var(--crit-soft);color:var(--crit);border:1px solid var(--crit)}
+.chip.fix{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.chip button{border:0;background:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
+.verdict{font-size:16px;line-height:1.45;max-width:90ch;border-left:4px solid var(--crit);padding:4px 0 4px 14px}
+.verdict.ok{border-left-color:var(--good)} .verdict.idle{border-left-color:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .v{font-family:var(--font-mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:20px}
+.scroll{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;background:var(--surface)}
+td.n,th.n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+th.sortable{cursor:pointer} th.sortable:hover{color:var(--ink)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:12px}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600;white-space:nowrap;border:1px solid transparent}
+.pill.crit{background:var(--crit-soft);color:var(--crit);border-color:var(--crit)}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.pill.good{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.pill.info{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.pill.quiet{background:var(--surface-2);color:var(--muted);border-color:var(--line)}
+.neg{color:var(--crit)} .pos{color:var(--good)}
+.bar{display:inline-block;vertical-align:middle;width:64px;height:8px;border-radius:2px;background:var(--surface-2);overflow:hidden;margin-right:6px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.good i{background:var(--good)} .bar.warn i{background:var(--warn)} .bar.crit i{background:var(--crit)}
+.evid{font:500 12px var(--font-mono);color:var(--accent);background:var(--accent-soft);border:0;border-radius:3px;padding:1px 5px;cursor:pointer;margin:0 3px 3px 0}
+a{color:var(--accent)}
+.net{min-width:860px;width:100%;height:auto;display:block}
+.net text{font-family:var(--font-ui)}
+.net .node{cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1.5px solid}
+.cand{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.6fr);gap:10px 20px}
+.cand:first-of-type{border-top:0;padding-top:0}
+@media (max-width:820px){.cand{grid-template-columns:1fr}}
+.cand h4{margin:0;font-size:14px;font-weight:600}
+.crit-list{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:center;font-size:12px}
+.crit-list .bar{width:100%;margin:0}
+ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px;max-width:80ch}
+.alert{border-left:4px solid var(--line)}
+.alert.crit{border-left-color:var(--crit)} .alert.warn{border-left-color:var(--warn)} .alert.info{border-left-color:var(--accent)}
+.alert .head{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+details summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:500}
+ol.trace{margin:6px 0 0;padding-left:20px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(480px,100%);background:var(--surface);border-left:1px solid var(--line);z-index:40;padding:calc(16px + env(safe-area-inset-top,0px)) 18px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;box-shadow:-8px 0 24px rgba(0,0,0,.18)}
+.drawer .x{align-self:flex-end}
+.formula{font-family:var(--font-mono);font-size:13px;background:var(--surface-2);border-radius:4px;padding:8px 10px;overflow-x:auto;white-space:pre}
+.tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--good)}
+.split{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s}}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><h1>NovaDrive Supplier Risk Console</h1><span>Fictional case data · workbook cut-off 30 Sep 2025 · alternates researched 3 Oct 2026</span></div>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" data-tab="sim" aria-selected="true">Loss simulator</button>
+    <button role="tab" data-tab="scorecard" aria-selected="false">Scorecard</button>
+    <button role="tab" data-tab="alerts" aria-selected="false">Alerts</button>
+    <button role="tab" data-tab="alternates" aria-selected="false">Alternates</button>
+    <button role="tab" data-tab="evidence" aria-selected="false">Network evidence</button>
+    <button role="tab" data-tab="method" aria-selected="false">Method</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+<section class="tab" id="tab-sim">
+  <div class="panel">
+    <div class="row">
+      <div class="field"><label for="sel-lost">Supplier to lose</label><select id="sel-lost"></select></div>
+      <button class="btn" id="btn-add" type="button">Mark as lost</button>
+      <button class="btn ghost" id="btn-reset" type="button">Reset</button>
+      <div class="field"><label for="dep-slider">Dependency where exclusivity is not stated: <span class="mono" id="dep-val">0.60</span></label><input type="range" id="dep-slider" min="0.3" max="1" step="0.05" value="0.6"></div>
+    </div>
+    <div class="chips" id="lost-chips"></div>
+  </div>
+  <p class="verdict idle" id="sim-verdict"></p>
+  <div class="kpis" id="sim-kpis"></div>
+  <div class="panel">
+    <div class="split"><h2>Supplier network</h2><div class="legend" id="net-legend"></div></div>
+    <p class="muted small">Supply flows left to right. Click a supplier to lose or restore it. Each box shows the supplier's supply efficiency E.</p>
+    <div class="scroll" id="net-wrap"></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h2>Suppliers affected</h2><div class="scroll" id="tbl-sup"></div></div>
+    <div class="panel"><h2>Components and products affected</h2><div class="scroll" id="tbl-comp"></div><div class="scroll" id="tbl-prod"></div></div>
+  </div>
+  <div id="fix-section" class="tab"></div>
+</section>
+
+<section class="tab" id="tab-scorecard" hidden>
+  <div><h2>Supplier scorecard</h2><p class="lede">X is each supplier's own reliability, from 0 to 1. Loss impact is the share of total supply efficiency that disappears if that supplier stops. Priority averages the two risks. Evidence confidence is shown beside the score and never mixed into it.</p></div>
+  <div class="panel"><div class="scroll" id="tbl-score"></div><p class="muted small">* Financial and assurance values were missing in the workbook and are filled with the network's weak-quartile value, so a data gap is never read as low risk. Click a column heading to sort.</p></div>
+</section>
+
+<section class="tab" id="tab-alerts" hidden>
+  <div><h2>Risk alerts from the event feed</h2><p class="lede">Each external signal is checked for freshness and duplication, then matched to a legal entity, registry number, site or zone, and converted to an alert only if it reaches the supplier network.</p></div>
+  <div id="alert-list" class="tab"></div>
+  <div class="panel">
+    <h2>Test a new signal</h2>
+    <p class="muted small">Type or paste a signal and run the same matcher. The example below is illustrative, not part of the case feed.</p>
+    <div class="row">
+      <div class="field" style="flex:1 1 260px"><label for="ev-title">Title</label><input type="text" id="ev-title" value="Fire at Cobalt plant"></div>
+      <div class="field"><label for="ev-pub">Published</label><input type="date" id="ev-pub" value="2025-10-02"></div>
+      <div class="field"><label for="ev-eff">Effective</label><input type="date" id="ev-eff" value="2025-10-02"></div>
+    </div>
+    <div class="field"><label for="ev-detail">Detail</label><textarea id="ev-detail">A fire has halted production at Cobalt Control Electronics in Z04.</textarea></div>
+    <div><button class="btn" id="btn-match" type="button">Match signal</button></div>
+    <div id="custom-alert"></div>
+  </div>
+</section>
+
+<section class="tab" id="tab-alternates" hidden>
+  <div><h2>Alternate suppliers</h2><p class="lede">Real companies shortlisted from public web sources for the component or input each case supplier provides. Fitment says how well a candidate matches the need. The reliability estimate X is scored separately. Neither replaces qualification.</p></div>
+  <div class="panel"><div class="row"><div class="field"><label for="sel-alt">Supplier to replace</label><select id="sel-alt"></select></div></div><div id="alt-context"></div></div>
+  <div class="panel" id="alt-cands"></div>
+  <div class="panel"><h2>Fitment framework</h2><div class="scroll"><table>
+    <thead><tr><th>Criterion</th><th>What is checked from public evidence</th><th class="n">Weight</th></tr></thead>
+    <tbody>
+    <tr><td>Technical capability</td><td>Makes the same product or input class</td><td class="n">30%</td></tr>
+    <tr><td>Application relevance</td><td>Evidence of use in drives, inverters, charging or storage</td><td class="n">25%</td></tr>
+    <tr><td>Manufacturing footprint</td><td>Number and spread of production sites</td><td class="n">15%</td></tr>
+    <tr><td>Scale</td><td>Size relative to NovaDrive's likely volume</td><td class="n">15%</td></tr>
+    <tr><td>Industry presence and qualification</td><td>Track record, certifications, named programmes</td><td class="n">15%</td></tr>
+    </tbody></table></div>
+    <p class="muted small">Each criterion is scored 1 to 5 from the cited pages and the weighted result is shown as a fraction of 1. The reliability estimate uses the same four parts as X: financial standing, delivery (not public, fixed at 0.60), footprint spread and assurance (0.65 unless a certification is cited).</p></div>
+</section>
+
+<section class="tab" id="tab-evidence" hidden>
+  <div><h2>Network evidence</h2><p class="lede">Every supply link, with the workbook records behind it. Confirmed links have two or more source types. Disclosed links rest on one program disclosure. Candidate links need verification.</p></div>
+  <div class="panel"><h3>Link register</h3><div class="scroll" id="tbl-links"></div></div>
+  <div class="panel"><h3>Records kept out of the network</h3><div class="scroll" id="tbl-excl"></div></div>
+  <div class="panel"><div class="split"><h3>All 59 evidence records</h3><div class="field"><label for="ev-filter">Filter</label><input type="text" id="ev-filter" placeholder="Name, ID or word"></div></div><div class="scroll" id="tbl-evid"></div></div>
+</section>
+
+<section class="tab" id="tab-method" hidden>
+  <div><h2>How the scores and the model work</h2></div>
+  <div class="panel">
+    <h3>X: supplier reliability, 0 to 1</h3>
+    <p>X measures how dependable a supplier is on its own. It is built from the Supplier Indicators sheet with fixed thresholds, so no score depends on the rest of the sample.</p>
+    <div class="formula">X = 0.30 × Financial + 0.30 × Operational + 0.20 × Geography + 0.20 × Assurance
+
+Financial   = mean of current ratio (0.8 → 0, 2.0 → 1) and net debt/EBITDA (6x → 0, 1x → 1)
+Operational = mean of 3-month timeliness (75% → 0, 95% → 1) and change since January (-10 pts → 0, +2 pts → 1)
+Geography   = 1 − mean of hazard, logistics and infrastructure indices / 100
+Assurance   = 1 − assurance gap index / 100</div>
+    <h3>E: supply efficiency, the share of planned output a chain can be relied on to deliver</h3>
+    <p>A supplier is only as dependable as its weakest required input. Each upstream link carries a dependency d: 1.0 where the evidence confirms a sole source, the slider value (0.60 by default) where exclusivity is not stated.</p>
+    <div class="formula">Input assurance  S = 1 − d × (1 − E of the input supplier)
+Supplier         E = min( own X, S of every input )
+Component        E = sum over Tier-1 suppliers of allocation share × E
+Product          E = min over its components
+Total efficiency   = revenue-weighted mean of product E</div>
+    <h3>Losing a supplier</h3>
+    <p>A lost supplier has E = 0. The model recomputes every supplier, component and product. Revenue at risk is each product's revenue times the fraction of its efficiency that is lost. Upstream suppliers are listed with the share of their mapped customers that disappears.</p>
+    <h3>Compensating</h3>
+    <p>For each lost supplier the tool finds the lowest X a replacement needs for total efficiency to return to the baseline, then ranks the researched alternates: those that meet the threshold first, then by fitment. Where a second source is already qualified, shifting volume to it is offered first. A replacement is assumed to arrive with its own upstream chain, which is not mapped.</p>
+    <h3>Limits</h3>
+    <ul>
+      <li>No spend, inventory or capacity data exists, so results are exposure estimates, not forecasts.</li>
+      <li>Tier-2 and Tier-3 qualification times are not given; the lead time of the component they feed is used as a floor.</li>
+      <li>X for real alternates is a coarse estimate from public profiles and is not comparable in precision to X from workbook indicators.</li>
+      <li>All case entities are fictional. Public sources are used only for alternates.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<aside class="drawer" id="drawer" hidden aria-label="Evidence record"><button class="btn ghost small x" id="drawer-x" type="button">Close</button><div id="drawer-body"></div></aside>
+
+<script>const DATA = /*DATA*/; const ALTS = /*ALTS*/;</script>
+<script>/*MODEL*/</script>
+<script>/*EVENTS*/</script>
+<script>/*APP*/</script>
